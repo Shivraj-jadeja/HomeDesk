@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Homedesk Lite</title>
+  <link rel="preconnect" href="https://unpkg.com"/>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#111832; --muted:#6b7280; --text:#e5e7eb; --blue:#3b82f6; --green:#22c55e; --accent:#0ea5e9;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#0b1020,#0b1226);color:var(--text);font:14px/1.35 system-ui,Segoe UI,Roboto,Inter,Arial}
+    .app{display:grid;grid-template-rows:56px 1fr; height:100%}
+    .topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel);border-bottom:1px solid #1f2b53}
+    .topbar h1{font-size:16px;margin:0 12px 0 4px;color:#c7d2fe}
+    .btn{background:#1f2b53;border:1px solid #24346b;color:#cbd5e1;padding:8px 10px;border-radius:10px;cursor:pointer}
+    .btn:hover{filter:brightness(1.15)}
+    .btn.primary{background:var(--accent);border-color:#0ea5e9;color:#001018}
+    .btn.ghost{background:transparent;border-color:#263a82}
+    .input{background:#0e1533;border:1px solid #1f2b53; color:#e5e7eb;padding:8px 10px;border-radius:10px}
+
+    .main{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
+    #network{height:calc(100vh - 56px - 24px);background:#0e1430;border:1px solid #1f2b53;border-radius:14px}
+
+    .side{background:var(--panel);border:1px solid #1f2b53;border-radius:14px;display:flex;flex-direction:column}
+    .side .section{padding:14px 14px 0}
+    .side h2{font-size:14px;margin:0 0 8px;color:#cbd5e1}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .muted{color:var(--muted)}
+    .kv{display:grid;grid-template-columns:90px 1fr;gap:8px;margin:8px 0}
+    textarea{width:100%;min-height:64px;background:#0e1533;border:1px solid #1f2b53;color:#e5e7eb;border-radius:10px;padding:8px}
+    input[type="range"]{width:100%}
+    .files{flex:1;overflow:auto;margin:8px 14px 14px}
+    .file{padding:6px 8px;border-bottom:1px dashed #223067;color:#cdd6f4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#14204a;border:1px solid #2a3c84;color:#cbd5e1}
+    .callout{padding:10px;border-left:3px solid var(--accent);background:#0d173a; margin: 8px 14px; border-radius:8px}
+    .footer{border-top:1px solid #1f2b53;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+    .hint{color:#93c5fd}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <h1>Homedesk Lite</h1>
+      <button class="btn primary" id="addProjectBtn">Add Project</button>
+      <button class="btn" id="renameBtn">Rename</button>
+      <button class="btn" id="saveLayoutBtn">Save Layout</button>
+      <button class="btn" id="voiceStartBtn">Start Voice</button>
+      <button class="btn ghost" id="voiceStopBtn">Stop Voice</button>
+      <span class="muted" id="status">ready</span>
+      <div style="margin-left:auto" class="row">
+        <input class="input" id="searchInput" placeholder="Search files in selected project…"/>
+        <button class="btn" id="searchBtn">Search</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div id="network"></div>
+
+      <aside class="side" id="side">
+        <div class="section">
+          <h2>Project</h2>
+          <div class="kv"><div class="muted">Name</div><div id="pName">—</div></div>
+          <div class="kv"><div class="muted">Progress</div><div><input id="pProgress" type="range" min="0" max="100" value="0"/></div></div>
+          <div class="kv"><div class="muted">Value</div><div><span class="pill" id="pProgressVal">0%</span></div></div>
+          <div class="kv"><div class="muted">Updated</div><div id="pUpdated">—</div></div>
+          <div class="row" style="margin:10px 0 0">
+            <button class="btn" id="pickFolderBtn">Pick Folder</button>
+            <button class="btn" id="indexBtn">Index Files</button>
+          </div>
+          <div class="callout" id="callout">
+            Tip: You can say <span class="pill">“open project &lt;name&gt;”</span>, <span class="pill">“set progress &lt;name&gt; to 60”</span>, <span class="pill">“list projects”</span>
+          </div>
+          <div>
+            <div class="muted">Description</div>
+            <textarea id="pDesc" placeholder="Short description…"></textarea>
+            <div class="row" style="margin-top:8px">
+              <button class="btn" id="saveBtn">Save</button>
+              <span class="muted" id="saveMsg"></span>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <h2>Files <span class="muted" id="fileCount">(0)</span></h2>
+        </div>
+        <div class="files" id="files"></div>
+        <div class="footer">
+          <span class="muted">Local & private • Browser‑only</span>
+          <span class="hint" id="voiceHint">🎤 Voice off</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ===== Utilities =====
+  const $ = (id) => document.getElementById(id);
+  const speak = (t) => window.speechSynthesis?.speak(new SpeechSynthesisUtterance(t));
+  const nowStr = () => new Date().toLocaleString();
+  const saveLocal = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const readLocal = (k, d) => { try {return JSON.parse(localStorage.getItem(k)) ?? d;} catch {return d;} };
+
+  // ===== Data =====
+  let projects = readLocal('projects', []); // {id,name,desc,progress,updated,files:[{path,size,modified}], pos:{x,y}}
+  const ME_ID = 'me';
+  let selectedId = null;
+
+  // ===== Graph =====
+  const nodes = new vis.DataSet();
+  const edges = new vis.DataSet();
+  const container = $("network");
+  const options = {
+    physics: { stabilization:true, barnesHut:{ gravitationalConstant:-4000 } },
+    interaction: { hover:true, navigationButtons:false, multiselect:false, keyboard:true },
+    nodes: { shape:'box', color:{ background:'#1f2937', border:'#334155', highlight:{background:'#0ea5e9', border:'#38bdf8'} }, font:{ color:'#e5e7eb' }, margin:8, borderWidth:1 },
+    edges: { color:'#3b4f9b', smooth:true },
+  };
+  const network = new vis.Network(container, {nodes, edges}, options);
+
+  function ensureMe(){
+    if(!nodes.get(ME_ID)) nodes.add({ id:ME_ID, label:'Shivraj', color:{background:'#0ea5e9',border:'#22d3ee'}, font:{color:'#001018'} });
+  }
+  function loadGraph(){
+    ensureMe();
+    for(const p of projects){
+      nodes.update({ id:p.id, label:p.name, x:p.pos?.x, y:p.pos?.y, fixed: !!p.pos });
+      if(!edges.get(`${ME_ID}-${p.id}`)) edges.add({ id:`${ME_ID}-${p.id}`, from:ME_ID, to:p.id });
+    }
+  }
+  function savePositions(){
+    const pos = network.getPositions(projects.map(p=>p.id));
+    projects = projects.map(p=> ({...p, pos: pos[p.id] ? {x:pos[p.id].x, y:pos[p.id].y} : p.pos}));
+    saveLocal('projects', projects);
+    toast('Layout saved');
+  }
+
+  function toast(msg){
+    $('status').textContent = msg;
+    setTimeout(()=>{$('status').textContent='ready'}, 1500);
+  }
+
+  // ===== Sidebar rendering =====
+  const fields = { name:$('pName'), desc:$('pDesc'), prog:$('pProgress'), progVal:$('pProgressVal'), updated:$('pUpdated'), files:$('files'), fileCount:$('fileCount') };
+
+  function showProject(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    selectedId = id;
+    fields.name.textContent = p.name;
+    fields.desc.value = p.desc || '';
+    fields.prog.value = p.progress ?? 0;
+    fields.progVal.textContent = `${fields.prog.value}%`;
+    fields.updated.textContent = p.updated || '—';
+    renderFiles(p.files||[]);
+  }
+
+  function renderFiles(list){
+    fields.files.innerHTML = list?.length ? '' : '<div class="muted">No files indexed yet.</div>';
+    for(const f of (list||[]).slice(0,500)){
+      const div = document.createElement('div');
+      div.className='file';
+      div.textContent = `${f.path}  (${fmtSize(f.size)})`;
+      fields.files.appendChild(div);
+    }
+    fields.fileCount.textContent = `(${list?.length||0})`;
+  }
+
+  function fmtSize(n){ if(!Number.isFinite(n)) return '-'; const u=['B','KB','MB','GB']; let i=0; while(n>1024&&i<u.length-1){n/=1024;i++} return n.toFixed(1)+' '+u[i]; }
+
+  // ===== CRUD =====
+  function addProject(name){
+    const id = 'p_'+Math.random().toString(36).slice(2,8);
+    const p = { id, name, desc:'', progress:0, updated: nowStr(), files:[] };
+    projects.push(p); saveLocal('projects', projects);
+    nodes.add({ id, label:name }); edges.add({ id:`${ME_ID}-${id}`, from:ME_ID, to:id });
+    network.selectNodes([id]); showProject(id);
+    speak(`Added project ${name}`);
+  }
+
+  function renameProject(id,newName){
+    const p = projects.find(x=>x.id===id); if(!p) return;
+    p.name = newName; p.updated = nowStr(); saveLocal('projects', projects);
+    nodes.update({id, label:newName}); showProject(id); toast('Renamed');
+  }
+
+  function updateProject(id, fieldsToUpdate){
+    const p = projects.find(x=>x.id===id); if(!p) return;
+    Object.assign(p, fieldsToUpdate, {updated: nowStr()});
+    saveLocal('projects', projects); showProject(id);
+  }
+
+  // ===== Voice (Web Speech API, Chromium/Edge/Chrome recommended) =====
+  let rec = null; let listening=false;
+  function canVoice(){
+    return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  }
+  function startVoice(){
+    if(!canVoice()){ toast('Voice not supported in this browser'); return; }
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    rec = new SpeechRec(); rec.lang='en-US'; rec.continuous=true; rec.interimResults=false;
+    rec.onresult = (ev)=>{ const t = ev.results[ev.results.length-1][0].transcript.trim(); handleCommand(t); };
+    rec.onerror = (e)=> toast('Voice error: '+e.error);
+    rec.onend = ()=>{ if(listening){ rec.start(); } };
+    rec.start(); listening=true; $('voiceHint').textContent='🎤 Listening'; speak('Listening');
+  }
+  function stopVoice(){ if(rec){ listening=false; rec.stop(); $('voiceHint').textContent='🎤 Voice off'; toast('Voice stopped'); } }
+
+  // ===== Commands =====
+  function handleCommand(text){
+    const t = text.toLowerCase(); console.log('voice>', t);
+    // list projects
+    if(/^(list|show) projects?$/.test(t)){
+      const names = projects.map(p=>p.name).join(', ') || 'no projects';
+      speak('Projects: ' + names); toast('Listed projects'); return;
+    }
+    // open project <name>
+    let m = t.match(/^open project (.+)$/); if(m){ const name = m[1].trim(); openByName(name); return; }
+    // focus <name>
+    m = t.match(/^focus (.+)$/); if(m){ const name = m[1].trim(); openByName(name,true); return; }
+    // set progress <name> to <n>
+    m = t.match(/^set progress (.+) to (\d{1,3})$/); if(m){ setProgressByName(m[1].trim(), parseInt(m[2],10)); return; }
+    // add project <name>
+    m = t.match(/^add project (.+)$/); if(m){ addProject(cap(m[1].trim())); return; }
+    // search files for <term>
+    m = t.match(/^search files (for )?(.+)$/); if(m){ searchFiles(m[2].trim()); return; }
+    toast('Unrecognized: '+text); speak('Sorry, I did not get that');
+  }
+
+  function cap(s){return s.replace(/\b\w/g, c=>c.toUpperCase());}
+  function openByName(name, focusOnly=false){
+    const p = projects.find(x=>x.name.toLowerCase()===name.toLowerCase());
+    if(!p){ toast('Not found: '+name); speak('Project not found'); return; }
+    network.selectNodes([p.id]); showProject(p.id);
+    if(focusOnly){ network.focus(p.id,{ scale:1.2, animation:true }); }
+    speak((focusOnly?'Focused ':'Opened ') + p.name);
+  }
+  function setProgressByName(name,val){
+    const p = projects.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(!p) return speak('Project not found');
+    val = Math.max(0, Math.min(100, val)); updateProject(p.id, {progress:val});
+    fields.prog.value = val; fields.progVal.textContent = val+'%';
+    speak(`${p.name} progress set to ${val} percent`);
+  }
+
+  // ===== File System Access (Chromium) =====
+  let dirHandleByProject = new Map(); // not persisted (simple mode)
+
+  async function pickFolder(){
+    if(!selectedId) return toast('Select a project');
+    if(!window.showDirectoryPicker){ toast('Folder picker not supported here'); return; }
+    try{
+      const handle = await window.showDirectoryPicker({ id:'homedesk', mode:'read' });
+      dirHandleByProject.set(selectedId, handle);
+      toast('Folder set'); speak('Folder selected');
+    }catch(e){ if(e?.name!=='AbortError') toast('Folder error'); }
+  }
+
+  async function* walk(dirHandle, prefix=''){
+    for await (const [name, handle] of dirHandle.entries()){
+      if(name === '.git' || name.startsWith('.git/')) continue;
+      const path = prefix ? `${prefix}/${name}` : name;
+      if(handle.kind === 'file'){
+        try{
+          const f = await handle.getFile();
+          yield { path, size:f.size, modified:f.lastModified };
+        }catch{ /* ignore */ }
+      } else if(handle.kind === 'directory'){
+        yield* walk(handle, path);
+      }
+    }
+  }
+
+  async function indexFiles(){
+    if(!selectedId) return toast('Select a project');
+    const handle = dirHandleByProject.get(selectedId);
+    if(!handle) { toast('Pick a folder first'); return; }
+    const files=[]; let count=0; const limit=1500; // simple cap
+    for await (const file of walk(handle)){
+      files.push(file); count++; if(count>=limit) break;
+    }
+    updateProject(selectedId, { files });
+    toast(`Indexed ${files.length} files`);
+    speak(`Indexed ${files.length} files`);
+  }
+
+  function searchFiles(term){
+    if(!selectedId) return toast('Select a project');
+    const p = projects.find(x=>x.id===selectedId); if(!p?.files?.length) return toast('No index');
+    const q = term.toLowerCase();
+    const res = p.files.filter(f => f.path.toLowerCase().includes(q)).slice(0,500);
+    fields.files.innerHTML='';
+    for(const f of res){ const div=document.createElement('div'); div.className='file'; div.textContent=`${f.path} (${fmtSize(f.size)})`; fields.files.appendChild(div); }
+    fields.fileCount.textContent=`(${res.length}/${p.files.length})`;
+    toast(`Found ${res.length}`);
+  }
+
+  // ===== Wire UI =====
+  $('addProjectBtn').onclick = () => {
+    const name = prompt('Project name?'); if(!name) return;
+    addProject(cap(name.trim()));
+  };
+  $('renameBtn').onclick = () => {
+    if(!selectedId) return toast('Select a project');
+    const name = prompt('New name?', fields.name.textContent || '');
+    if(name) renameProject(selectedId, cap(name.trim()));
+  };
+  $('saveLayoutBtn').onclick = savePositions;
+  $('voiceStartBtn').onclick = startVoice;
+  $('voiceStopBtn').onclick = stopVoice;
+  $('pickFolderBtn').onclick = pickFolder;
+  $('indexBtn').onclick = indexFiles;
+  $('saveBtn').onclick = () => {
+    if(!selectedId) return;
+    updateProject(selectedId, { desc: $('pDesc').value, progress: parseInt($('pProgress').value,10) });
+    toast('Saved'); speak('Saved');
+  };
+  $('pProgress').oninput = (e)=> $('pProgressVal').textContent = e.target.value + '%';
+  $('searchBtn').onclick = () => { const t = $('searchInput').value.trim(); if(t) searchFiles(t); };
+  $('searchInput').addEventListener('keydown', (e)=>{if(e.key==='Enter'){ $('searchBtn').click(); }});
+
+  network.on('selectNode', (params)=>{
+    const id = params.nodes[0]; if(id===ME_ID) return; showProject(id);
+  });
+
+  // ===== Boot =====
+  ensureMe();
+  loadGraph();
+  // If we have at least one project, select it
+  if(projects[0]){ network.selectNodes([projects[0].id]); showProject(projects[0].id); }
+})();
+</script>
+</body>
+</html>
