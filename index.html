@@ -114,7 +114,7 @@
   const edges = new vis.DataSet();
   const container = $("network");
   const options = {
-    physics: { stabilization:true, barnesHut:{ gravitationalConstant:-4000 } },
+    physics: { stabilization:true, barnesHut:{ gravitationalConstant:-4000 }},
     interaction: { hover:true, navigationButtons:false, multiselect:false, keyboard:true },
     nodes: { shape:'box', color:{ background:'#1f2937', border:'#334155', highlight:{background:'#0ea5e9', border:'#38bdf8'} }, font:{ color:'#e5e7eb' }, margin:8, borderWidth:1 },
     edges: { color:'#3b4f9b', smooth:true },
@@ -127,7 +127,7 @@
   function loadGraph(){
     ensureMe();
     for(const p of projects){
-      nodes.update({ id:p.id, label:p.name, x:p.pos?.x, y:p.pos?.y, fixed: !!p.pos });
+      nodes.update({ id:p.id, label:p.name, x:p.pos?.x, y:p.pos?.y, fixed: false });
       if(!edges.get(`${ME_ID}-${p.id}`)) edges.add({ id:`${ME_ID}-${p.id}`, from:ME_ID, to:p.id });
     }
   }
@@ -266,14 +266,36 @@
 
   let dirHandleByProject = new Map();
   async function pickFolder(){
-    if(!selectedId) return toast('Select a project');
-    if(!window.showDirectoryPicker){ toast('Folder picker not supported here'); return; }
-    try{
-      const handle = await window.showDirectoryPicker({ id:'homedesk', mode:'read' });
-      dirHandleByProject.set(selectedId, handle);
-      toast('Folder set'); speak('Folder selected');
-    }catch(e){ if(e?.name!=='AbortError') toast('Folder error'); }
+  if(!selectedId) return toast('Select a project');
+  if(!window.showDirectoryPicker){ toast('Folder picker not supported'); return; }
+  try{
+    const handle = await window.showDirectoryPicker({ id:'homedesk', mode:'read' });
+    dirHandleByProject.set(selectedId, handle);
+    await saveHandle(selectedId, handle); // ✅ save persistently
+    toast('Folder set');
+    speak('Folder selected');
+  }catch(e){ if(e?.name!=='AbortError') toast('Folder error'); }
+}
+  async function saveHandle(projectId, handle) {
+  if ('storage' in navigator && 'getDirectory' in navigator.storage) {
+    const root = await navigator.storage.getDirectory();
+    const dir = await root.getDirectoryHandle('homedesk-handles', { create: true });
+    await dir.putFileHandle(projectId, handle);
   }
+}
+
+  async function loadHandle(projectId) {
+  if ('storage' in navigator && 'getDirectory' in navigator.storage) {
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await root.getDirectoryHandle('homedesk-handles');
+      return await dir.getFileHandle(projectId);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
   async function* walk(dirHandle, prefix=''){
     for await (const [name, handle] of dirHandle.entries()){
@@ -288,17 +310,38 @@
   }
 
   async function indexFiles(){
-    if(!selectedId) return toast('Select a project');
-    const handle = dirHandleByProject.get(selectedId);
-    if(!handle) { toast('Pick a folder first'); return; }
-    const files=[]; let count=0; const limit=1500;
-    for await (const file of walk(handle)){
-      files.push(file); count++; if(count>=limit) break;
-    }
-    updateProject(selectedId, { files });
-    toast(`Indexed ${files.length} files`);
-    speak(`Indexed ${files.length} files`);
+  if(!selectedId) return toast('Select a project');
+  const p = projects.find(x=>x.id===selectedId);
+  if(!p) return;
+
+  // If files exist → clear them (but keep folder handle!)
+  if (p.files && p.files.length > 0) {
+    updateProject(selectedId, { files: [] });
+    toast('Files cleared (folder remembered)');
+    speak('Files cleared');
+    return;
   }
+
+  // Otherwise → index new files
+  let handle = dirHandleByProject.get(selectedId);
+  if(!handle) {
+    if(!window.showDirectoryPicker){ toast('Folder picker not supported'); return; }
+    try {
+      handle = await window.showDirectoryPicker({ id:'homedesk', mode:'read' });
+      dirHandleByProject.set(selectedId, handle);
+      toast('Folder set'); speak('Folder selected');
+    } catch(e){ if(e?.name!=='AbortError') toast('Folder error'); return; }
+  }
+
+  const files=[]; let count=0; const limit=1500;
+  for await (const file of walk(handle)){
+    files.push(file); count++; if(count>=limit) break;
+  }
+  updateProject(selectedId, { files });
+  toast(`Indexed ${files.length} files`);
+  speak(`Indexed ${files.length} files`);
+  }
+
 
   function searchFiles(term){
     if(!selectedId) return toast('Select a project');
@@ -327,9 +370,24 @@
   network.on('selectNode', (params)=>{ const id = params.nodes[0]; if(id===ME_ID) return; showProject(id); });
 
   ensureMe();
-  loadGraph();
-  if(projects[0]){ network.selectNodes([projects[0].id]); showProject(projects[0].id); }
+  ensureMe();
+loadGraph();
+
+// Show first project if available
+if (projects[0]) {
+  network.selectNodes([projects[0].id]);
+  showProject(projects[0].id);
+}
+
+// Restore folder handles asynchronously
+(async () => {
+  for (const p of projects) {
+    const h = await loadHandle(p.id);
+    if (h) dirHandleByProject.set(p.id, h);
+  }
 })();
+})();   // 🔴 this closes the main IIFE
+
 </script>
 
 <!-- [D] Service worker registration for offline/PWA install -->
