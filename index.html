@@ -276,26 +276,39 @@
     speak('Folder selected');
   }catch(e){ if(e?.name!=='AbortError') toast('Folder error'); }
 }
+  // Store handles persistently in IndexedDB
   async function saveHandle(projectId, handle) {
-  if ('storage' in navigator && 'getDirectory' in navigator.storage) {
-    const root = await navigator.storage.getDirectory();
-    const dir = await root.getDirectoryHandle('homedesk-handles', { create: true });
-    await dir.putFileHandle(projectId, handle);
-  }
-}
-
-  async function loadHandle(projectId) {
-  if ('storage' in navigator && 'getDirectory' in navigator.storage) {
     try {
-      const root = await navigator.storage.getDirectory();
-      const dir = await root.getDirectoryHandle('homedesk-handles');
-      return await dir.getFileHandle(projectId);
-    } catch {
-      return null;
+      const db = await window.indexedDB.open("homedesk-handles", 1);
+      db.onupgradeneeded = (e) => {
+        e.target.result.createObjectStore("handles");
+      };
+      db.onsuccess = () => {
+        const tx = db.result.transaction("handles", "readwrite");
+        tx.objectStore("handles").put(handle, projectId);
+      };
+    } catch (e) {
+      console.warn("Save handle failed", e);
     }
   }
-  return null;
-}
+
+  // Load handle for a project
+  async function loadHandle(projectId) {
+    return new Promise((resolve, reject) => {
+      const req = window.indexedDB.open("homedesk-handles", 1);
+      req.onupgradeneeded = (e) => {
+        e.target.result.createObjectStore("handles");
+      };
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction("handles", "readonly");
+        const getReq = tx.objectStore("handles").get(projectId);
+        getReq.onsuccess = () => resolve(getReq.result || null);
+        getReq.onerror = () => resolve(null);
+      };
+      req.onerror = () => resolve(null);
+    });
+  }
 
   async function* walk(dirHandle, prefix=''){
     for await (const [name, handle] of dirHandle.entries()){
@@ -370,23 +383,22 @@
   network.on('selectNode', (params)=>{ const id = params.nodes[0]; if(id===ME_ID) return; showProject(id); });
 
   ensureMe();
-  ensureMe();
-loadGraph();
+  loadGraph();
 
-// Show first project if available
-if (projects[0]) {
-  network.selectNodes([projects[0].id]);
-  showProject(projects[0].id);
-}
-
-// Restore folder handles asynchronously
-(async () => {
-  for (const p of projects) {
-    const h = await loadHandle(p.id);
-    if (h) dirHandleByProject.set(p.id, h);
+  // Auto-select first project if available
+  if (projects[0]) {
+    network.selectNodes([projects[0].id]);
+    showProject(projects[0].id);
   }
+
+  // Restore folder handles from storage (async)
+  (async () => {
+    for (const p of projects) {
+      const h = await loadHandle(p.id);
+      if (h) dirHandleByProject.set(p.id, h);
+    }
+  })();
 })();
-})();   // 🔴 this closes the main IIFE
 
 </script>
 
