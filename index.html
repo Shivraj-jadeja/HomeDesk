@@ -48,6 +48,7 @@
       <h1>HomeDesk</h1>
       <button class="btn primary" id="addProjectBtn">Add Project</button>
       <button class="btn" id="renameBtn">Rename</button>
+      <button class="btn" id="deleteBtn">Delete Project</button>
       <button class="btn" id="saveLayoutBtn">Save Layout</button>
       <button class="btn" id="voiceStartBtn">Start Voice</button>
       <button class="btn ghost" id="voiceStopBtn">Stop Voice</button>
@@ -190,6 +191,34 @@
     saveLocal('projects', projects); showProject(id);
   }
 
+  function deleteProject(id) {
+  const idx = projects.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  const p = projects[idx];
+  if (!confirm(`Delete project "${p.name}"?`)) return;
+
+  // Remove from list
+  projects.splice(idx, 1);
+  saveLocal('projects', projects);
+
+  // Remove from graph
+  nodes.remove({ id });
+  edges.remove({ id: `${ME_ID}-${id}` });
+
+  // Reset UI
+  selectedId = null;
+  fields.name.textContent = '—';
+  fields.desc.value = '';
+  fields.prog.value = 0;
+  fields.progVal.textContent = '0%';
+  fields.updated.textContent = '—';
+  fields.files.innerHTML = '';
+  fields.fileCount.textContent = '(0)';
+
+  toast('Deleted');
+  speak('Project deleted');
+}
+
   // Voice (Web Speech API)
   let rec = null; let listening=false;
   function canVoice(){
@@ -284,6 +313,7 @@
 
   $('addProjectBtn').onclick = () => { const name = prompt('Project name?'); if(!name) return; addProject(cap(name.trim())); };
   $('renameBtn').onclick = () => { if(!selectedId) return toast('Select a project'); const name = prompt('New name?', fields.name.textContent || ''); if(name) renameProject(selectedId, cap(name.trim())); };
+  $('deleteBtn').onclick = () => { if(!selectedId) return toast('Select a project'); deleteProject(selectedId); };
   $('saveLayoutBtn').onclick = savePositions;
   $('voiceStartBtn').onclick = startVoice;
   $('voiceStopBtn').onclick = stopVoice;
