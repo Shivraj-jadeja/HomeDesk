@@ -22,3 +22,11 @@ export function toast(msg){
   $('status').textContent = msg;
   setTimeout(() => { $('status').textContent = 'ready' }, 1500);
 }
+
+export function debounce(fn, ms = 400) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}

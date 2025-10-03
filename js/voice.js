@@ -1,5 +1,5 @@
 import { toast, speak, projects, selectedId } from './data.js';
-import { addProject, openByName, setProgressByName, searchFilesInSelected, renameProjectById, deleteProjectById } from './graph.js';
+import { addProject, openByName, setProgressByName, searchFilesInSelected, renameProjectById, deleteProjectById, fitView } from './graph.js';
 
 let rec = null; let listening=false;
 
@@ -27,6 +27,14 @@ export function handleCommand(raw){
   const t = raw.toLowerCase().trim();
   console.log('voice>', t);
 
+  // quick actions first
+  if (t === 'stop voice' || t === 'voice stop' || t === 'stop listening') {
+    stopVoice(); speak('Voice stopped'); return;
+  }
+  if (t === 'center view' || t === 'reset view' || t === 'fit view') {
+    fitView(); speak('Centered'); return;
+  }
+
   if(/^(list|show) projects?$/.test(t)){
     const names = projects.map(p=>p.name).join(', ') || 'no projects';
     speak('Projects: ' + names); toast('Listed projects'); return;
@@ -39,44 +47,32 @@ export function handleCommand(raw){
   if(m = t.match(/^add project (.+)$/)){ addProject(cap(m[1].trim())); return; }
   if(m = t.match(/^search files (for )?(.+)$/)){ searchFilesInSelected(m[2].trim()); return; }
 
-  // stop voice by speech
-  if (t === 'stop voice' || t === 'voice stop' || t === 'stop listening') {
-   stopVoice();
-   speak('Voice stopped');
-   return;
-  }
-
- // RENAME: "rename project <old> to <new>" OR "rename project current to <new>"
+  // RENAME: "rename project <old> to <new>" / "rename project current to <new>"
   if (m = t.match(/^rename project (.+) to (.+)$/)) {
-   const oldRaw = m[1].trim();
-   const newName = cap(m[2].trim());
-   if (oldRaw === 'current' || oldRaw === 'this') {
-       if (!selectedId) { speak('No project selected'); toast('Select a project'); return; }
-       renameProjectById(selectedId, newName);
-       speak('Renamed');
-       return;
-   } else {
-       const p = projects.find(x => x.name.toLowerCase() === oldRaw.toLowerCase());
-       if (!p) { speak('Project not found'); toast('Not found: ' + oldRaw); return; }
-       renameProjectById(p.id, newName);
-       speak('Renamed');
-       return;
-   }
+    const oldRaw = m[1].trim();
+    const newName = cap(m[2].trim());
+    if (oldRaw === 'current' || oldRaw === 'this') {
+      if (!selectedId) { speak('No project selected'); toast('Select a project'); return; }
+      renameProjectById(selectedId, newName);
+      speak('Renamed'); return;
+    } else {
+      const p = projects.find(x => x.name.toLowerCase() === oldRaw.toLowerCase());
+      if (!p) { speak('Project not found'); toast('Not found: ' + oldRaw); return; }
+      renameProjectById(p.id, newName);
+      speak('Renamed'); return;
+    }
   }
 
-
-  // "delete project <name>" OR "delete current project" / "delete current"
+  // DELETE: "delete project <name>" OR "delete current project" / "delete current"
   if(m = t.match(/^delete (project )?(.+)$/)){
     const target = (m[2]||'').trim();
     if(target === 'current project' || target === 'current' || target === 'this project'){
       if(!selectedId){ speak('No project selected'); toast('Select a project'); return; }
-      deleteProjectById(selectedId);
-      return;
+      deleteProjectById(selectedId); return;
     }
     const p = projects.find(x=>x.name.toLowerCase()===target.toLowerCase());
     if(!p){ speak('Project not found'); toast('Not found: '+target); return; }
-    deleteProjectById(p.id);
-    return;
+    deleteProjectById(p.id); return;
   }
 
   toast('Unrecognized: '+raw); speak('Sorry, I did not get that');

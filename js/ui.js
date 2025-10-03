@@ -1,15 +1,23 @@
-import { $, toast, speak, projects, selectedId, setSelected } from './data.js';
-import { initGraph, addProject, renameProjectById, deleteProjectById, savePositions, showProject, openByName, searchFilesInSelected } from './graph.js';
+import { $, toast, speak, projects, selectedId, debounce } from './data.js';
+import { initGraph, addProject, renameProjectById, deleteProjectById, showProject, searchFilesInSelected, fitView } from './graph.js';
 import { startVoice, stopVoice } from './voice.js';
 import { pickFolder, indexFiles, restoreHandles } from './files.js';
 
 export async function initUI(){
   initGraph();
 
+  if (!projects.length) {
+  addProject('Sample Project');
+}
+
+
   if (projects[0]) { // auto-select first
     showProject(projects[0].id);
   }
   await restoreHandles(projects);
+
+  const centerBtn = $('centerBtn');
+  if (centerBtn) centerBtn.onclick = () => fitView();
 
   $('addProjectBtn').onclick = () => {
     const name = prompt('Project name?'); if(!name) return;
@@ -20,7 +28,6 @@ export async function initUI(){
     const name = prompt('New name?', $('pName').textContent || ''); if(name) renameProjectById(selectedId, cap(name.trim()));
   };
   $('deleteBtn').onclick = () => { if(!selectedId) return toast('Select a project'); deleteProjectById(selectedId); };
-  $('saveLayoutBtn').onclick = savePositions;
 
   $('voiceStartBtn').onclick = startVoice;
   $('voiceStopBtn').onclick = stopVoice;
@@ -28,18 +35,38 @@ export async function initUI(){
   $('pickFolderBtn').onclick = pickFolder;
   $('indexBtn').onclick = indexFiles;
 
-  $('saveBtn').onclick = () => {
-    if(!selectedId) return;
-    const p = projects.find(x=>x.id===selectedId);
-    if(!p) return;
-    p.desc = $('pDesc').value;
-    p.progress = parseInt($('pProgress').value,10);
-    p.updated = new Date().toLocaleString();
+  // --- Debounced auto-persist for desc & progress ---
+  const persist = debounce(() => {
+    if (!selectedId) return;
     localStorage.setItem('projects', JSON.stringify(projects));
-    toast('Saved'); speak('Saved');
+    toast('Saved');
+  }, 400);
+
+  // Description auto-save
+  $('pDesc').addEventListener('input', () => {
+    if (!selectedId) return;
+    const p = projects.find(x => x.id === selectedId); if (!p) return;
+    p.desc = $('pDesc').value;
+    p.updated = new Date().toLocaleString();
+    persist();
+  });
+
+  // Progress auto-save (also updates pill)
+  $('pProgress').addEventListener('input', (e) => {
+    if (!selectedId) return;
+    const p = projects.find(x => x.id === selectedId); if (!p) return;
+    const val = parseInt(e.target.value, 10) || 0;
+    $('pProgressVal').textContent = val + '%';
+    p.progress = val;
+    p.updated = new Date().toLocaleString();
+    persist();
+  });
+
+  // Search
+  $('searchBtn').onclick = () => { 
+    const t = $('searchInput').value.trim(); 
+    if(t) searchFilesInSelected(t); 
   };
-  $('pProgress').oninput = (e)=> $('pProgressVal').textContent = e.target.value + '%';
-  $('searchBtn').onclick = () => { const t = $('searchInput').value.trim(); if(t) searchFilesInSelected(t); };
   $('searchInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ $('searchBtn').click(); } });
 }
 

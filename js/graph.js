@@ -1,4 +1,8 @@
-import { ME_ID, $, speak, toast, nowStr, projects, updateProjects, setSelected, selectedId } from './data.js';
+if (!window.vis?.DataSet) {
+  console.error('vis-network not loaded before graph.js. Check script order.');
+}
+
+import { ME_ID, $, speak, toast, nowStr, projects, updateProjects, setSelected, selectedId, debounce } from './data.js';
 
 export const nodes = new vis.DataSet();
 export const edges = new vis.DataSet();
@@ -26,6 +30,15 @@ export function initGraph(){
     if(!edges.get(`${ME_ID}-${p.id}`)) edges.add({ id:`${ME_ID}-${p.id}`, from:ME_ID, to:p.id });
   }
   network.on('selectNode', (params)=>{ const id = params.nodes[0]; if(id===ME_ID) return; showProject(id); });
+  const savePositionsDebounced = debounce(() => savePositions(true), 400);
+  network.on('dragEnd', (params) => {
+   if (params.nodes && params.nodes.length) {
+       savePositionsDebounced();
+   }
+   });
+
+  // Safety: persist positions before leaving/reloading
+  window.addEventListener('beforeunload', () => savePositions(true));
 }
 
 function ensureMe(){
@@ -62,6 +75,7 @@ export function addProject(name){
   nodes.add({ id, label:name });
   edges.add({ id:`${ME_ID}-${id}`, from:ME_ID, to:id });
   network.selectNodes([id]); showProject(id);
+  try { network.fit({ animation: true, padding: 100 }); } catch {}
   speak(`Added project ${name}`);
 }
 
@@ -83,8 +97,8 @@ export function deleteProjectById(id){
     if(idx>-1) list.splice(idx,1);
     return list;
   });
-  nodes.remove({ id });
-  edges.remove({ id: `${ME_ID}-${id}` });
+  nodes.remove(id);
+  edges.remove(`${ME_ID}-${id}`);
 
   setSelected(null);
   $('pName').textContent = '—';
@@ -100,15 +114,18 @@ export function deleteProjectById(id){
 }
 
 export function openByName(name, focusOnly=false){
-  const p = projects.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  const key = name.trim().toLowerCase();
+  const p = projects.find(x => x.name.toLowerCase() === key);
   if(!p){ toast('Not found: '+name); speak('Project not found'); return; }
   network.selectNodes([p.id]); showProject(p.id);
   if(focusOnly){ network.focus(p.id,{ scale:1.2, animation:true }); }
   speak((focusOnly?'Focused ':'Opened ') + p.name);
 }
 
-export function setProgressByName(name,val){
-  const p = projects.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(!p){ speak('Project not found'); return; }
+export function setProgressByName(name,val){ 
+  const key = name.trim().toLowerCase();
+  const p = projects.find(x => x.name.toLowerCase() === key);
+  if(!p){ speak('Project not found'); return; }
   val = Math.max(0, Math.min(100, val));
   p.progress = val; p.updated = nowStr();
   updateProjects(list => list);
@@ -127,17 +144,25 @@ export function searchFilesInSelected(term){
   toast(`Found ${res.length}`);
 }
 
-export function savePositions(){
+export function savePositions(silent = false){
   const ids = projects.map(p=>p.id);
   const pos = network.getPositions(ids);
   for (const p of projects){
     if (pos[p.id]) p.pos = { x: pos[p.id].x, y: pos[p.id].y };
   }
   updateProjects(list => list);
-  toast('Layout saved');
+  if (!silent) toast('Layout saved');
 }
 
 export function focusSelected(){
   if(!selectedId) return;
   network.focus(selectedId,{ scale:1.2, animation:true });
+}
+
+export function fitView() {
+  const count = nodes.getIds().length;
+  if (!count) return;
+  if (typeof network?.fit === 'function') {
+    network.fit({ animation: true, padding: 100 });
+  }
 }
