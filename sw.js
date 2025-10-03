@@ -37,3 +37,4 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request)) // fallback to cache if offline
   );
 });
+
