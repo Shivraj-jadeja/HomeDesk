@@ -39,26 +39,32 @@ export function handleCommand(raw){
   if(m = t.match(/^add project (.+)$/)){ addProject(cap(m[1].trim())); return; }
   if(m = t.match(/^search files (for )?(.+)$/)){ searchFilesInSelected(m[2].trim()); return; }
 
-  // NEW: rename
-  // "rename <old> to <new>" OR "rename current to <new>"
-  if(m = t.match(/^rename (.+) to (.+)$/)){
-    const oldRaw = m[1].trim();
-    const newName = cap(m[2].trim());
-    if(oldRaw === 'current' || oldRaw === 'this'){
-      if(!selectedId){ speak('No project selected'); toast('Select a project'); return; }
-      renameProjectById(selectedId, newName);
-      speak('Renamed');
-      return;
-    } else {
-      const p = projects.find(x=>x.name.toLowerCase()===oldRaw.toLowerCase());
-      if(!p){ speak('Project not found'); toast('Not found: '+oldRaw); return; }
-      renameProjectById(p.id, newName);
-      speak('Renamed');
-      return;
-    }
+  // stop voice by speech
+  if (t === 'stop voice' || t === 'voice stop' || t === 'stop listening') {
+   stopVoice();
+   speak('Voice stopped');
+   return;
   }
 
-  // NEW: delete
+ // RENAME: "rename project <old> to <new>" OR "rename project current to <new>"
+  if (m = t.match(/^rename project (.+) to (.+)$/)) {
+   const oldRaw = m[1].trim();
+   const newName = cap(m[2].trim());
+   if (oldRaw === 'current' || oldRaw === 'this') {
+       if (!selectedId) { speak('No project selected'); toast('Select a project'); return; }
+       renameProjectById(selectedId, newName);
+       speak('Renamed');
+       return;
+   } else {
+       const p = projects.find(x => x.name.toLowerCase() === oldRaw.toLowerCase());
+       if (!p) { speak('Project not found'); toast('Not found: ' + oldRaw); return; }
+       renameProjectById(p.id, newName);
+       speak('Renamed');
+       return;
+   }
+  }
+
+
   // "delete project <name>" OR "delete current project" / "delete current"
   if(m = t.match(/^delete (project )?(.+)$/)){
     const target = (m[2]||'').trim();
