@@ -1,18 +1,26 @@
-const CACHE = 'homedesk-lite-v2'; // bump version so old cache is cleared
+// sw.js
+const CACHE = 'homedesk-lite-v8';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './sw.js',
   './vis-network.min.js',
+  './styles.css',
+  './galaxy.css',
+  './js/galaxy.global.js',
+  './js/app.js',
+  './js/graph.js',
+  './js/ui.js',
+  './js/data.js',
+  './js/files.js',
+  './js/voice.js',
   './icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
-  );
+  e.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
 });
 
 self.addEventListener('activate', (e) => {
@@ -29,12 +37,10 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        // Update cache in background
         const resClone = res.clone();
         caches.open(CACHE).then((cache) => cache.put(e.request, resClone));
         return res;
       })
-      .catch(() => caches.match(e.request)) // fallback to cache if offline
+      .catch(() => caches.match(e.request))
   );
 });
-

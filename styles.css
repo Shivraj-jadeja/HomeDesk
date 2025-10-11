@@ -9,9 +9,19 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#0b1020,#0b1226
 .btn.primary{background:var(--accent);border-color:#0ea5e9;color:#001018}
 .btn.ghost{background:transparent;border-color:#263a82}
 .input{background:#0e1533;border:1px solid #1f2b53; color:#e5e7eb;padding:8px 10px;border-radius:10px}
-.main{display:grid;grid-template-columns:1fr 360px;gap:12px;padding:12px}
-#network{height:calc(100vh - 56px - 24px);background:#0e1430;border:1px solid #1f2b53;border-radius:14px}
-.side{background:var(--panel);border:1px solid #1f2b53;border-radius:14px;display:flex;flex-direction:column}
+
+/* Layout: left graph + right side */
+.main{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 360px; /* minmax prevents collapse */
+  gap:12px;
+  padding:12px;
+  height:calc(100vh - 56px);   /* let children stretch full height */
+  min-height:0;                /* allow scroll in children */
+}
+
+/* right panel */
+.side{background:var(--panel);border:1px solid #1f2b53;border-radius:14px;display:flex;flex-direction:column;min-height:0}
 .side .section{padding:14px 14px 0}
 .side h2{font-size:14px;margin:0 0 8px;color:#cbd5e1}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}

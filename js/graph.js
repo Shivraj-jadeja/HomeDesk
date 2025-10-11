@@ -1,3 +1,4 @@
+// js/graph.js
 if (!window.vis?.DataSet) {
   console.error('vis-network not loaded before graph.js. Check script order.');
 }
@@ -15,34 +16,47 @@ const fields = {
 };
 
 export function initGraph(){
-  const container = $('network');
+  const container = $('graph');
+  if (!container) { console.error('#graph not found'); return; }
+  container.style.width = '100%';
+  container.style.height = '100%';
+
   const options = {
-    physics: { stabilization:true, barnesHut:{ gravitationalConstant:-4000 }},
-    interaction: { hover:true, multiselect:false, keyboard:true },
-    nodes: { shape:'box', color:{ background:'#1f2937', border:'#334155',
-      highlight:{background:'#0ea5e9', border:'#38bdf8'} }, font:{ color:'#e5e7eb' }, margin:8, borderWidth:1 },
-    edges: { color:'#3b4f9b', smooth:true },
+    autoResize: true,
+    physics: { stabilization: true, barnesHut: { gravitationalConstant: -4000 } },
+    interaction: { hover: true, multiselect: false, keyboard: true },
+    nodes: {
+      shape: 'box',
+      color: { background:'#1f2937', border:'#334155', highlight:{ background:'#0ea5e9', border:'#38bdf8' } },
+      font: { color:'#e5e7eb' }, margin:8, borderWidth:1
+    },
+    edges: { color:'#3b4f9b', smooth:true }
   };
-  network = new vis.Network(container, {nodes, edges}, options);
+
+  network = new vis.Network(container, { nodes, edges }, options);
   ensureMe();
-  for(const p of projects){
+
+  for (const p of projects){
     nodes.update({ id:p.id, label:p.name, x:p.pos?.x, y:p.pos?.y, fixed:false });
-    if(!edges.get(`${ME_ID}-${p.id}`)) edges.add({ id:`${ME_ID}-${p.id}`, from:ME_ID, to:p.id });
+    if (!edges.get(`${ME_ID}-${p.id}`)) edges.add({ id:`${ME_ID}-${p.id}`, from:ME_ID, to:p.id });
   }
-  network.on('selectNode', (params)=>{ const id = params.nodes[0]; if(id===ME_ID) return; showProject(id); });
+
+  try { network.fit({ animation: true, padding: 100 }); } catch {}
+
+  network.on('selectNode', (params)=>{ const id=params.nodes[0]; if(id===ME_ID) return; showProject(id); });
+
   const savePositionsDebounced = debounce(() => savePositions(true), 400);
   network.on('dragEnd', (params) => {
-   if (params.nodes && params.nodes.length) {
-       savePositionsDebounced();
-   }
-   });
+    if (params.nodes && params.nodes.length) savePositionsDebounced();
+  });
 
-  // Safety: persist positions before leaving/reloading
   window.addEventListener('beforeunload', () => savePositions(true));
 }
 
 function ensureMe(){
-  if(!nodes.get(ME_ID)) nodes.add({ id:ME_ID, label:'Shivraj', color:{background:'#0ea5e9',border:'#22d3ee'}, font:{color:'#001018'} });
+  if (!nodes.get(ME_ID)) {
+    nodes.add({ id:ME_ID, label:'Shivraj', color:{ background:'#0ea5e9', border:'#22d3ee' }, font:{ color:'#001018' } });
+  }
 }
 
 export function showProject(id){
@@ -58,9 +72,9 @@ export function showProject(id){
 
 function renderFiles(list){
   fields.files.innerHTML = list?.length ? '' : '<div class="muted">No files indexed yet.</div>';
-  for(const f of (list||[]).slice(0,500)){
+  for (const f of (list||[]).slice(0,500)) {
     const div = document.createElement('div');
-    div.className='file';
+    div.className = 'file';
     div.textContent = `${f.path}  (${fmtSize(f.size)})`;
     fields.files.appendChild(div);
   }
@@ -92,11 +106,7 @@ export function deleteProjectById(id){
   const p = projects.find(x=>x.id===id); if(!p) return;
   if(!confirm(`Delete project "${p.name}"?`)) return;
 
-  updateProjects(list => {
-    const idx = list.findIndex(z=>z.id===id);
-    if(idx>-1) list.splice(idx,1);
-    return list;
-  });
+  updateProjects(list => { const idx=list.findIndex(z=>z.id===id); if(idx>-1) list.splice(idx,1); return list; });
   nodes.remove(id);
   edges.remove(`${ME_ID}-${id}`);
 
@@ -147,9 +157,7 @@ export function searchFilesInSelected(term){
 export function savePositions(silent = false){
   const ids = projects.map(p=>p.id);
   const pos = network.getPositions(ids);
-  for (const p of projects){
-    if (pos[p.id]) p.pos = { x: pos[p.id].x, y: pos[p.id].y };
-  }
+  for (const p of projects){ if (pos[p.id]) p.pos = { x: pos[p.id].x, y: pos[p.id].y }; }
   updateProjects(list => list);
   if (!silent) toast('Layout saved');
 }

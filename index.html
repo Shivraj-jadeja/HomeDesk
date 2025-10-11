@@ -4,11 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HomeDesk</title>
+
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0b1020" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="./galaxy.css?v=7" />
+  <link rel="stylesheet" href="./styles.css?v=7" />
+
+  <!-- Libraries -->
   <link rel="preconnect" href="https://unpkg.com"/>
   <script src="./vis-network.min.js"></script>
-  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- Galaxy helper as a plain script (GLOBAL). Safe to 404. -->
+  <script defer src="./js/galaxy.global.js?v=9"></script>
+
+  <!-- App module (load ONCE) -->
+  <script type="module" src="./js/app.js?v=9"></script>
 </head>
 <body>
   <div class="app">
@@ -28,7 +41,11 @@
     </div>
 
     <div class="main">
-      <div id="network"></div>
+      <!-- ⭐ Graph area (galaxy behind, vis-network front) -->
+      <div id="app-wrap">
+        <div id="galaxy-bg" aria-hidden="true"></div>
+        <div id="graph"></div>
+      </div>
 
       <aside class="side" id="side">
         <div class="section">
@@ -57,25 +74,26 @@
             <textarea id="pDesc" placeholder="Short description…"></textarea>
           </div>
         </div>
+
         <div class="section">
           <h2>Files <span class="muted" id="fileCount">(0)</span></h2>
         </div>
         <div class="files" id="files"></div>
+
         <div class="footer">
-          <span class="muted">Local & private • PWA-ready</span>
+          <span class="muted">Local &amp; private • PWA-ready</span>
           <span class="hint" id="voiceHint">🎤 Voice off</span>
         </div>
       </aside>
     </div>
   </div>
 
-  <!-- App modules -->
-  <script type="module" src="./js/app.js"></script>
-
   <!-- SW registration -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
     }
   </script>
 </body>
