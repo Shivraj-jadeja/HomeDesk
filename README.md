@@ -1,7 +1,7 @@
 
 # HomeDesk — Your Personal Command Center (WIP)
 
-> **TL;DR**: HomeDesk is a lightweight, installable web app that turns your projects, tasks, and ideas into a living, draggable knowledge web—with **voice commands**, **smooth physics**, and a **galaxy-inspired UI**. It’s fast, offline-friendly, and designed to feel fun.
+> HomeDesk is a lightweight, installable web app that turns your projects, tasks, and ideas into a living, draggable knowledge web—with **voice commands**, **smooth physics**, and a **galaxy-inspired UI**. It’s fast, offline-friendly, and designed to feel fun.
 
 ![HomeDesk Demo](./assets/demo.gif)
 
