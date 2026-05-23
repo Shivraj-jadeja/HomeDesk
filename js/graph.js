@@ -97,12 +97,17 @@ function renderCurrentSpace(animate = true){
   fields.space.textContent = rootLabel();
 
   if (currentRoot === ME_ID) {
-    nodes.add({ id:ME_ID, label:'Shivraj', color:{ background:'#0ea5e9', border:'#22d3ee' }, font:{ color:'#001018' } });
+    nodes.add({
+      id:ME_ID,
+      label:'Shivraj',
+      color:{ background:'#0ea5e9', border:'#22d3ee' },
+      font:{ color:'#001018' }
+    });
   } else {
     const rootProject = getProject(currentRoot);
     nodes.add({
       id:currentRoot,
-      label:`${rootProject?.name || 'Node'}\n◆ open space`,
+      label: rootProject?.name || 'Node',
       x: posFor(rootProject || {}, currentRoot)?.x,
       y: posFor(rootProject || {}, currentRoot)?.y,
       color:{ background:'#0ea5e9', border:'#22d3ee' },
@@ -116,22 +121,49 @@ function renderCurrentSpace(animate = true){
       label:`↖ Trace tether\n${rootLabelOf(getParentId(currentRoot))}`,
       x:-220,
       y:-140,
-      color:{ background:'#211747', border:'#a78bfa', highlight:{ background:'#3b217b', border:'#c4b5fd' } },
+      color:{
+        background:'#211747',
+        border:'#a78bfa',
+        highlight:{ background:'#3b217b', border:'#c4b5fd' }
+      },
       font:{ color:'#ddd6fe' },
       margin:9,
       borderWidth:1
     });
-    edges.add({ id:`${TETHER_ID}-${currentRoot}`, from:TETHER_ID, to:currentRoot, dashes:true, color:{ color:'#a78bfa' }, smooth:{ type:'curvedCW', roundness:0.25 } });
+
+    edges.add({
+      id:`${TETHER_ID}-${currentRoot}`,
+      from:TETHER_ID,
+      to:currentRoot,
+      dashes:true,
+      color:{ color:'#a78bfa' },
+      smooth:{ type:'curvedCW', roundness:0.25 }
+    });
   }
 
   for (const p of visibleChildren()){
     const pos = posFor(p, viewRootId);
-    nodes.update({ id:p.id, label:p.name, x:pos?.x, y:pos?.y, fixed:false });
+    nodes.update({
+      id:p.id,
+      label:p.name,
+      x:pos?.x,
+      y:pos?.y,
+      fixed:false
+    });
+
     const edgeId = `${viewRootId}-${p.id}`;
-    if (!edges.get(edgeId)) edges.add({ id:edgeId, from:viewRootId, to:p.id });
+    if (!edges.get(edgeId)) {
+      edges.add({
+        id:edgeId,
+        from:viewRootId,
+        to:p.id
+      });
+    }
   }
 
-  try { network.fit({ animation: animate, padding: 100 }); } catch {}
+  try {
+    network.fit({ animation: animate, padding: 100 });
+  } catch {}
 }
 
 function rootLabelOf(id){
@@ -164,19 +196,38 @@ function clearSelectionPanel(clearSpace = true){
 
 function renderFiles(list){
   fields.files.innerHTML = list?.length ? '' : '<div class="muted">No files indexed yet.</div>';
+
   for (const f of (list||[]).slice(0,500)) {
     const div = document.createElement('div');
     div.className = 'file';
     div.textContent = `${f.path}  (${fmtSize(f.size)})`;
     fields.files.appendChild(div);
   }
+
   fields.fileCount.textContent = `(${list?.length||0})`;
 }
-function fmtSize(n){ if(!Number.isFinite(n)) return '-'; const u=['B','KB','MB','GB']; let i=0; while(n>1024&&i<u.length-1){n/=1024;i++} return n.toFixed(1)+' '+u[i]; }
+
+function fmtSize(n){
+  if(!Number.isFinite(n)) return '-';
+  const u=['B','KB','MB','GB'];
+  let i=0;
+  while(n>1024&&i<u.length-1){n/=1024;i++}
+  return n.toFixed(1)+' '+u[i];
+}
 
 export function addProject(name){
   const id = 'p_'+Math.random().toString(36).slice(2,8);
-  const p = { id, name, parentId:viewRootId, desc:'', progress:0, updated: nowStr(), files:[], posByView:{} };
+  const p = {
+    id,
+    name,
+    parentId:viewRootId,
+    desc:'',
+    progress:0,
+    updated: nowStr(),
+    files:[],
+    posByView:{}
+  };
+
   updateProjects(list => (list.push(p), list));
   renderCurrentSpace(true);
   network.selectNodes([id]);
@@ -187,9 +238,18 @@ export function addProject(name){
 
 export function renameProjectById(id,newName){
   const p = projects.find(x=>x.id===id); if(!p) return;
-  p.name = newName; p.updated = nowStr();
+  p.name = newName;
+  p.updated = nowStr();
+
   updateProjects(list => list);
-  if (nodes.get(id)) nodes.update({id, label:id === viewRootId ? `${newName}\n◆ open space` : newName});
+
+  if (nodes.get(id)) {
+    nodes.update({
+      id,
+      label: newName
+    });
+  }
+
   showProject(id);
   fields.space.textContent = rootLabel();
   toast('Renamed');
@@ -198,21 +258,28 @@ export function renameProjectById(id,newName){
 function descendantsOf(id){
   const result = [];
   const stack = [id];
+
   while (stack.length) {
     const cur = stack.pop();
     result.push(cur);
-    for (const child of projects.filter(p => p.parentId === cur)) stack.push(child.id);
+    for (const child of projects.filter(p => p.parentId === cur)) {
+      stack.push(child.id);
+    }
   }
+
   return result;
 }
 
 export function deleteProjectById(id){
   const p = projects.find(x=>x.id===id); if(!p) return;
+
   const all = descendantsOf(id);
   const extra = all.length > 1 ? ` and ${all.length - 1} child node(s)` : '';
+
   if(!confirm(`Delete project "${p.name}"${extra}?`)) return;
 
   const parent = getParentId(id);
+
   updateProjects(list => list.filter(z => !all.includes(z.id)));
 
   if (viewRootId === id || all.includes(viewRootId)) setViewRoot(parent);
@@ -224,8 +291,10 @@ export function deleteProjectById(id){
 
 export function openNodeSpace(id){
   if (id === ME_ID || id === TETHER_ID) return;
+
   const p = getProject(id);
   if (!p) return toast('Select a project');
+
   savePositions(true);
   setViewRoot(id);
   renderCurrentSpace(true);
@@ -240,8 +309,10 @@ export function traceTether(){
     toast('Already at Shivraj space');
     return;
   }
+
   const from = viewRootId;
   const parent = getParentId(from);
+
   savePositions(true);
   setViewRoot(parent);
   renderCurrentSpace(true);
@@ -253,13 +324,24 @@ export function traceTether(){
 export function openByName(name, focusOnly=false){
   const key = name.trim().toLowerCase();
   const p = projects.find(x => x.name.toLowerCase() === key);
-  if(!p){ toast('Not found: '+name); return null; }
+
+  if(!p){
+    toast('Not found: '+name);
+    return null;
+  }
+
   if (!nodes.get(p.id)) {
     setViewRoot(p.parentId || ME_ID);
     renderCurrentSpace(true);
   }
-  network.selectNodes([p.id]); showProject(p.id);
-  if(focusOnly){ network.focus(p.id,{ scale:1.2, animation:true }); }
+
+  network.selectNodes([p.id]);
+  showProject(p.id);
+
+  if(focusOnly){
+    network.focus(p.id,{ scale:1.2, animation:true });
+  }
+
   return p;
 }
 
@@ -272,39 +354,70 @@ export function openNodeByName(name){
 export function setProgressByName(name,val){
   const key = name.trim().toLowerCase();
   const p = projects.find(x => x.name.toLowerCase() === key);
-  if(!p){ return null; }
-  val = Math.max(0, Math.min(100, val));
-  p.progress = val; p.updated = nowStr();
-  updateProjects(list => list);
-  if (selectedId === p.id) {
-    $('pProgress').value = val; $('pProgressVal').textContent = val+'%';
+
+  if(!p){
+    return null;
   }
+
+  val = Math.max(0, Math.min(100, val));
+  p.progress = val;
+  p.updated = nowStr();
+
+  updateProjects(list => list);
+
+  if (selectedId === p.id) {
+    $('pProgress').value = val;
+    $('pProgressVal').textContent = val+'%';
+  }
+
   return p;
 }
 
 export function searchFilesInSelected(term){
   if(!selectedId) return toast('Select a project');
-  const p = projects.find(x=>x.id===selectedId); if(!p?.files?.length) return toast('No index');
+
+  const p = projects.find(x=>x.id===selectedId);
+  if(!p?.files?.length) return toast('No index');
+
   const q = term.toLowerCase();
   const res = p.files.filter(f => f.path.toLowerCase().includes(q)).slice(0,500);
-  const files = $('files'); files.innerHTML='';
-  for(const f of res){ const div=document.createElement('div'); div.className='file'; div.textContent=`${f.path} (${fmtSize(f.size)})`; files.appendChild(div); }
+
+  const files = $('files');
+  files.innerHTML='';
+
+  for(const f of res){
+    const div=document.createElement('div');
+    div.className='file';
+    div.textContent=`${f.path} (${fmtSize(f.size)})`;
+    files.appendChild(div);
+  }
+
   $('fileCount').textContent=`(${res.length}/${p.files.length})`;
   toast(`Found ${res.length}`);
 }
 
 export function savePositions(silent = false){
   if (!network) return;
+
   const visibleProjectIds = nodes.getIds().filter(id => id !== ME_ID && id !== TETHER_ID);
   const pos = network.getPositions(visibleProjectIds);
+
   for (const p of projects){
     if (pos[p.id]) {
       p.posByView = p.posByView || {};
-      p.posByView[viewRootId] = { x: pos[p.id].x, y: pos[p.id].y };
-      if ((p.parentId || ME_ID) === ME_ID && viewRootId === ME_ID) p.pos = p.posByView[viewRootId];
+      p.posByView[viewRootId] = {
+        x: pos[p.id].x,
+        y: pos[p.id].y
+      };
+
+      if ((p.parentId || ME_ID) === ME_ID && viewRootId === ME_ID) {
+        p.pos = p.posByView[viewRootId];
+      }
     }
   }
+
   updateProjects(list => list);
+
   if (!silent) toast('Layout saved');
 }
 
@@ -316,6 +429,7 @@ export function focusSelected(){
 export function fitView() {
   const count = nodes.getIds().length;
   if (!count) return;
+
   if (typeof network?.fit === 'function') {
     network.fit({ animation: true, padding: 100 });
   }
@@ -323,6 +437,7 @@ export function fitView() {
 
 export function selectFirstHomeProject(){
   const first = projects.find(p => (p.parentId || ME_ID) === ME_ID);
+
   if (first) {
     if (!nodes.get(first.id)) renderCurrentSpace(false);
     network.selectNodes([first.id]);
@@ -331,4 +446,3 @@ export function selectFirstHomeProject(){
     clearSelectionPanel(false);
   }
 }
- 

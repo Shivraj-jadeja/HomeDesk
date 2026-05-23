@@ -1,5 +1,6 @@
 // sw.js
-const CACHE = 'homedesk-lite-v10';
+const CACHE = 'homedesk-lite-v13';
+
 const ASSETS = [
   './',
   './index.html',
@@ -33,6 +34,18 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+
+  if (url.pathname.endsWith('/homedesk-db')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  if (e.request.method !== 'GET') {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
   e.respondWith(
     fetch(e.request)
       .then((res) => {

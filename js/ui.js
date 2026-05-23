@@ -14,7 +14,15 @@ export async function initUI(){
   await restoreHandles(projects);
 
   const centerBtn = $('centerBtn');
-  if (centerBtn) centerBtn.onclick = () => fitView();
+  if (centerBtn) {
+    centerBtn.onclick = () => {
+      fitView();
+
+      if (typeof window.resetHomedeskGalaxy === 'function') {
+        window.resetHomedeskGalaxy();
+      }
+    };
+  }
 
   $('addProjectBtn').onclick = () => {
     const name = prompt('Project name?'); if(!name) return;
@@ -32,7 +40,11 @@ export async function initUI(){
     if(!selectedId) return toast('Select a project');
     const name = prompt('New name?', $('pName').textContent || ''); if(name) renameProjectById(selectedId, cap(name.trim()));
   };
-  $('deleteBtn').onclick = () => { if(!selectedId) return toast('Select a project'); deleteProjectById(selectedId); };
+
+  $('deleteBtn').onclick = () => {
+    if(!selectedId) return toast('Select a project');
+    deleteProjectById(selectedId);
+  };
 
   $('voiceStartBtn').onclick = startVoice;
   $('voiceStopBtn').onclick = stopVoice;
@@ -70,7 +82,14 @@ export async function initUI(){
     const t = $('searchInput').value.trim();
     if(t) searchFilesInSelected(t);
   };
-  $('searchInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ $('searchBtn').click(); } });
+
+  $('searchInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      $('searchBtn').click();
+    }
+  });
 }
 
-function cap(s){return s.replace(/\b\w/g, c=>c.toUpperCase());}
+function cap(s){
+  return s.replace(/\b\w/g, c=>c.toUpperCase());
+}

@@ -1,0 +1,168 @@
+{
+  "projects": [
+    {
+      "id": "p_buld7u",
+      "name": "Game Dev Portfolio Web",
+      "desc": "",
+      "progress": 0,
+      "updated": "9/11/2025, 6:52:47 PM",
+      "files": [],
+      "pos": {
+        "x": 185,
+        "y": -61
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": 185,
+          "y": -61
+        },
+        "p_buld7u": {
+          "x": 25,
+          "y": 10
+        }
+      }
+    },
+    {
+      "id": "p_cimwfw",
+      "name": "Folder Testing",
+      "desc": "",
+      "progress": 0,
+      "updated": "10/13/2025, 9:23:04 PM",
+      "files": [],
+      "pos": {
+        "x": 176,
+        "y": 80
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": 176,
+          "y": 80
+        }
+      }
+    },
+    {
+      "id": "p_63qfk5",
+      "name": "Description Test",
+      "desc": "Testing Description!!!",
+      "progress": 0,
+      "updated": "9/11/2025, 7:57:02 PM",
+      "files": [],
+      "pos": {
+        "x": -164,
+        "y": 57
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": -164,
+          "y": 57
+        },
+        "p_63qfk5": {
+          "x": 25,
+          "y": 22
+        }
+      }
+    },
+    {
+      "id": "p_9hu9ui",
+      "name": "Adrift In Terror",
+      "desc": "",
+      "progress": 2,
+      "updated": "10/3/2025, 3:41:59 AM",
+      "files": [],
+      "pos": {
+        "x": -48,
+        "y": -177
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": -48,
+          "y": -177
+        },
+        "p_9hu9ui": {
+          "x": 20,
+          "y": 11
+        }
+      }
+    },
+    {
+      "id": "p_iwjs4r",
+      "name": "HomeDesk",
+      "desc": "",
+      "progress": 54,
+      "updated": "9/11/2025, 8:56:34 PM",
+      "files": [],
+      "pos": {
+        "x": -154,
+        "y": -84
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": -154,
+          "y": -84
+        }
+      }
+    },
+    {
+      "id": "p_qfglr7",
+      "name": "Voice Testing",
+      "desc": "",
+      "progress": 50,
+      "updated": "9/11/2025, 9:00:19 PM",
+      "files": [],
+      "pos": {
+        "x": 93,
+        "y": -166
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": 93,
+          "y": -166
+        }
+      }
+    },
+    {
+      "id": "p_3uv90d",
+      "name": "Fruit Frenzy",
+      "desc": "",
+      "progress": 90,
+      "updated": "9/19/2025, 3:27:23 AM",
+      "files": [],
+      "pos": {
+        "x": 69,
+        "y": 173
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": 69,
+          "y": 173
+        }
+      }
+    },
+    {
+      "id": "p_n6e83q",
+      "name": "Intel CheckIn App",
+      "desc": "",
+      "progress": 80,
+      "updated": "9/28/2025, 11:46:53 PM",
+      "files": [],
+      "pos": {
+        "x": -72,
+        "y": 163
+      },
+      "parentId": "me",
+      "posByView": {
+        "me": {
+          "x": -72,
+          "y": 163
+        }
+      }
+    }
+  ]
+}
