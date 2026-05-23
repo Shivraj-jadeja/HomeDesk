@@ -32,18 +32,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   window.resetHomedeskGalaxy = function resetHomedeskGalaxy() {
     try {
-      if (galaxyHandle?.destroy) {
-        galaxyHandle.destroy();
+      if (galaxyHandle?.resetToCenter) {
+        galaxyHandle.resetToCenter(950);
+        return;
       }
-    } catch {}
 
-    try {
-      if (galaxyEl) {
-        galaxyEl.innerHTML = '';
+      if (galaxyHandle?.reset) {
+        galaxyHandle.reset();
+        return;
       }
-    } catch {}
-
-    startGalaxy();
+    } catch (err) {
+      console.warn('Galaxy reset failed:', err);
+    }
   };
 
   startGalaxy();
