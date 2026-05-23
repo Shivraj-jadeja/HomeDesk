@@ -1,5 +1,5 @@
-import { $, toast, speak, projects, selectedId, debounce } from './data.js';
-import { initGraph, addProject, renameProjectById, deleteProjectById, showProject, searchFilesInSelected, fitView } from './graph.js';
+import { $, toast, projects, selectedId, debounce, saveProjects } from './data.js';
+import { initGraph, addProject, renameProjectById, deleteProjectById, showProject, searchFilesInSelected, fitView, openNodeSpace, traceTether, selectFirstHomeProject } from './graph.js';
 import { startVoice, stopVoice } from './voice.js';
 import { pickFolder, indexFiles, restoreHandles } from './files.js';
 
@@ -7,13 +7,10 @@ export async function initUI(){
   initGraph();
 
   if (!projects.length) {
-  addProject('Sample Project');
-}
-
-
-  if (projects[0]) { // auto-select first
-    showProject(projects[0].id);
+    addProject('Sample Project');
   }
+
+  selectFirstHomeProject();
   await restoreHandles(projects);
 
   const centerBtn = $('centerBtn');
@@ -23,6 +20,14 @@ export async function initUI(){
     const name = prompt('Project name?'); if(!name) return;
     addProject(cap(name.trim()));
   };
+
+  $('openNodeBtn').onclick = () => {
+    if(!selectedId) return toast('Select a project');
+    openNodeSpace(selectedId);
+  };
+
+  $('traceTetherBtn').onclick = () => traceTether();
+
   $('renameBtn').onclick = () => {
     if(!selectedId) return toast('Select a project');
     const name = prompt('New name?', $('pName').textContent || ''); if(name) renameProjectById(selectedId, cap(name.trim()));
@@ -35,23 +40,21 @@ export async function initUI(){
   $('pickFolderBtn').onclick = pickFolder;
   $('indexBtn').onclick = indexFiles;
 
-  // --- Debounced auto-persist for desc & progress ---
   const persist = debounce(() => {
     if (!selectedId) return;
-    localStorage.setItem('projects', JSON.stringify(projects));
+    saveProjects();
     toast('Saved');
   }, 400);
 
-  // Description auto-save
   $('pDesc').addEventListener('input', () => {
     if (!selectedId) return;
     const p = projects.find(x => x.id === selectedId); if (!p) return;
     p.desc = $('pDesc').value;
     p.updated = new Date().toLocaleString();
+    $('pUpdated').textContent = p.updated;
     persist();
   });
 
-  // Progress auto-save (also updates pill)
   $('pProgress').addEventListener('input', (e) => {
     if (!selectedId) return;
     const p = projects.find(x => x.id === selectedId); if (!p) return;
@@ -59,13 +62,13 @@ export async function initUI(){
     $('pProgressVal').textContent = val + '%';
     p.progress = val;
     p.updated = new Date().toLocaleString();
+    $('pUpdated').textContent = p.updated;
     persist();
   });
 
-  // Search
-  $('searchBtn').onclick = () => { 
-    const t = $('searchInput').value.trim(); 
-    if(t) searchFilesInSelected(t); 
+  $('searchBtn').onclick = () => {
+    const t = $('searchInput').value.trim();
+    if(t) searchFilesInSelected(t);
   };
   $('searchInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ $('searchBtn').click(); } });
 }

@@ -7,10 +7,16 @@ export const nowStr = () => new Date().toLocaleString();
 const saveLocal = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const readLocal = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 
-export let projects = readLocal('projects', []); // [{id,name,desc,progress,updated,files, pos}]
+export let projects = readLocal('projects', []);
 export let selectedId = null;
+export let viewRootId = readLocal('viewRootId', ME_ID) || ME_ID;
 
 export function setSelected(id){ selectedId = id; }
+export function setViewRoot(id){
+  viewRootId = id || ME_ID;
+  saveLocal('viewRootId', viewRootId);
+}
+
 export function updateProjects(mutator){
   projects = mutator(Array.isArray(projects) ? projects.slice() : []);
   saveLocal('projects', projects);

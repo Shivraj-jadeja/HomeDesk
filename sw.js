@@ -1,5 +1,5 @@
 // sw.js
-const CACHE = 'homedesk-lite-v8';
+const CACHE = 'homedesk-lite-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -32,7 +32,6 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Network-first strategy
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)

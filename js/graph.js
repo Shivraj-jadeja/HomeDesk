@@ -3,16 +3,18 @@ if (!window.vis?.DataSet) {
   console.error('vis-network not loaded before graph.js. Check script order.');
 }
 
-import { ME_ID, $, speak, toast, nowStr, projects, updateProjects, setSelected, selectedId, debounce } from './data.js';
+import { ME_ID, $, toast, nowStr, projects, updateProjects, saveProjects, setSelected, selectedId, debounce, viewRootId, setViewRoot } from './data.js';
 
 export const nodes = new vis.DataSet();
 export const edges = new vis.DataSet();
 let network;
 
+const TETHER_ID = '__trace_tether__';
+
 const fields = {
   name: $('pName'), desc: $('pDesc'), prog: $('pProgress'),
   progVal: $('pProgressVal'), updated: $('pUpdated'),
-  files: $('files'), fileCount: $('fileCount')
+  files: $('files'), fileCount: $('fileCount'), space: $('spaceName')
 };
 
 export function initGraph(){
@@ -34,16 +36,22 @@ export function initGraph(){
   };
 
   network = new vis.Network(container, { nodes, edges }, options);
-  ensureMe();
+  migrateOldProjects();
+  renderCurrentSpace(false);
 
-  for (const p of projects){
-    nodes.update({ id:p.id, label:p.name, x:p.pos?.x, y:p.pos?.y, fixed:false });
-    if (!edges.get(`${ME_ID}-${p.id}`)) edges.add({ id:`${ME_ID}-${p.id}`, from:ME_ID, to:p.id });
-  }
+  network.on('selectNode', (params)=>{
+    const id = params.nodes[0];
+    if (id === TETHER_ID) return;
+    if (id === ME_ID) { clearSelectionPanel(false); return; }
+    showProject(id);
+  });
 
-  try { network.fit({ animation: true, padding: 100 }); } catch {}
-
-  network.on('selectNode', (params)=>{ const id=params.nodes[0]; if(id===ME_ID) return; showProject(id); });
+  network.on('doubleClick', (params) => {
+    const id = params.nodes?.[0];
+    if (!id) return;
+    if (id === TETHER_ID) { traceTether(); return; }
+    if (id !== ME_ID) openNodeSpace(id);
+  });
 
   const savePositionsDebounced = debounce(() => savePositions(true), 400);
   network.on('dragEnd', (params) => {
@@ -53,10 +61,82 @@ export function initGraph(){
   window.addEventListener('beforeunload', () => savePositions(true));
 }
 
-function ensureMe(){
-  if (!nodes.get(ME_ID)) {
-    nodes.add({ id:ME_ID, label:'Shivraj', color:{ background:'#0ea5e9', border:'#22d3ee' }, font:{ color:'#001018' } });
+function migrateOldProjects(){
+  let changed = false;
+  const validIds = new Set(projects.map(p => p.id));
+
+  for (const p of projects) {
+    if (!p.parentId || p.parentId === 'root' || (!validIds.has(p.parentId) && p.parentId !== ME_ID)) {
+      p.parentId = ME_ID;
+      changed = true;
+    }
+    if (p.pos && !p.posByView) {
+      p.posByView = { [p.parentId || ME_ID]: p.pos };
+      changed = true;
+    }
   }
+
+  if (viewRootId !== ME_ID && !validIds.has(viewRootId)) {
+    setViewRoot(ME_ID);
+  }
+
+  if (changed) saveProjects();
+}
+
+function getProject(id){ return projects.find(x => x.id === id); }
+function getParentId(id){ return getProject(id)?.parentId || ME_ID; }
+function rootLabel(){ return viewRootId === ME_ID ? 'Shivraj' : (getProject(viewRootId)?.name || 'Shivraj'); }
+function visibleChildren(){ return projects.filter(p => (p.parentId || ME_ID) === viewRootId); }
+function posFor(p, rootId){ return p.posByView?.[rootId] || p.pos || undefined; }
+
+function renderCurrentSpace(animate = true){
+  nodes.clear();
+  edges.clear();
+
+  const currentRoot = viewRootId;
+  fields.space.textContent = rootLabel();
+
+  if (currentRoot === ME_ID) {
+    nodes.add({ id:ME_ID, label:'Shivraj', color:{ background:'#0ea5e9', border:'#22d3ee' }, font:{ color:'#001018' } });
+  } else {
+    const rootProject = getProject(currentRoot);
+    nodes.add({
+      id:currentRoot,
+      label:`${rootProject?.name || 'Node'}\n◆ open space`,
+      x: posFor(rootProject || {}, currentRoot)?.x,
+      y: posFor(rootProject || {}, currentRoot)?.y,
+      color:{ background:'#0ea5e9', border:'#22d3ee' },
+      font:{ color:'#ffffff', size:16, bold:true },
+      margin:10,
+      borderWidth:2
+    });
+
+    nodes.add({
+      id:TETHER_ID,
+      label:`↖ Trace tether\n${rootLabelOf(getParentId(currentRoot))}`,
+      x:-220,
+      y:-140,
+      color:{ background:'#211747', border:'#a78bfa', highlight:{ background:'#3b217b', border:'#c4b5fd' } },
+      font:{ color:'#ddd6fe' },
+      margin:9,
+      borderWidth:1
+    });
+    edges.add({ id:`${TETHER_ID}-${currentRoot}`, from:TETHER_ID, to:currentRoot, dashes:true, color:{ color:'#a78bfa' }, smooth:{ type:'curvedCW', roundness:0.25 } });
+  }
+
+  for (const p of visibleChildren()){
+    const pos = posFor(p, viewRootId);
+    nodes.update({ id:p.id, label:p.name, x:pos?.x, y:pos?.y, fixed:false });
+    const edgeId = `${viewRootId}-${p.id}`;
+    if (!edges.get(edgeId)) edges.add({ id:edgeId, from:viewRootId, to:p.id });
+  }
+
+  try { network.fit({ animation: animate, padding: 100 }); } catch {}
+}
+
+function rootLabelOf(id){
+  if (id === ME_ID) return 'Shivraj';
+  return getProject(id)?.name || 'Shivraj';
 }
 
 export function showProject(id){
@@ -68,6 +148,18 @@ export function showProject(id){
   fields.progVal.textContent = `${fields.prog.value}%`;
   fields.updated.textContent = p.updated || '—';
   renderFiles(p.files||[]);
+}
+
+function clearSelectionPanel(clearSpace = true){
+  setSelected(null);
+  if (clearSpace) fields.space.textContent = rootLabel();
+  fields.name.textContent = '—';
+  fields.desc.value = '';
+  fields.prog.value = 0;
+  fields.progVal.textContent = '0%';
+  fields.updated.textContent = '—';
+  fields.files.innerHTML = '<div class="muted">Select a project to view files.</div>';
+  fields.fileCount.textContent = '(0)';
 }
 
 function renderFiles(list){
@@ -84,63 +176,110 @@ function fmtSize(n){ if(!Number.isFinite(n)) return '-'; const u=['B','KB','MB',
 
 export function addProject(name){
   const id = 'p_'+Math.random().toString(36).slice(2,8);
-  const p = { id, name, desc:'', progress:0, updated: nowStr(), files:[] };
+  const p = { id, name, parentId:viewRootId, desc:'', progress:0, updated: nowStr(), files:[], posByView:{} };
   updateProjects(list => (list.push(p), list));
-  nodes.add({ id, label:name });
-  edges.add({ id:`${ME_ID}-${id}`, from:ME_ID, to:id });
-  network.selectNodes([id]); showProject(id);
-  try { network.fit({ animation: true, padding: 100 }); } catch {}
-  speak(`Added project ${name}`);
+  renderCurrentSpace(true);
+  network.selectNodes([id]);
+  showProject(id);
+  toast(`Added ${name}`);
+  return p;
 }
 
 export function renameProjectById(id,newName){
   const p = projects.find(x=>x.id===id); if(!p) return;
   p.name = newName; p.updated = nowStr();
   updateProjects(list => list);
-  nodes.update({id, label:newName});
+  if (nodes.get(id)) nodes.update({id, label:id === viewRootId ? `${newName}\n◆ open space` : newName});
   showProject(id);
+  fields.space.textContent = rootLabel();
   toast('Renamed');
+}
+
+function descendantsOf(id){
+  const result = [];
+  const stack = [id];
+  while (stack.length) {
+    const cur = stack.pop();
+    result.push(cur);
+    for (const child of projects.filter(p => p.parentId === cur)) stack.push(child.id);
+  }
+  return result;
 }
 
 export function deleteProjectById(id){
   const p = projects.find(x=>x.id===id); if(!p) return;
-  if(!confirm(`Delete project "${p.name}"?`)) return;
+  const all = descendantsOf(id);
+  const extra = all.length > 1 ? ` and ${all.length - 1} child node(s)` : '';
+  if(!confirm(`Delete project "${p.name}"${extra}?`)) return;
 
-  updateProjects(list => { const idx=list.findIndex(z=>z.id===id); if(idx>-1) list.splice(idx,1); return list; });
-  nodes.remove(id);
-  edges.remove(`${ME_ID}-${id}`);
+  const parent = getParentId(id);
+  updateProjects(list => list.filter(z => !all.includes(z.id)));
 
-  setSelected(null);
-  $('pName').textContent = '—';
-  $('pDesc').value = '';
-  $('pProgress').value = 0;
-  $('pProgressVal').textContent = '0%';
-  $('pUpdated').textContent = '—';
-  $('files').innerHTML = '';
-  $('fileCount').textContent = '(0)';
+  if (viewRootId === id || all.includes(viewRootId)) setViewRoot(parent);
+  if (selectedId === id || all.includes(selectedId)) clearSelectionPanel(false);
 
+  renderCurrentSpace(true);
   toast('Deleted');
-  speak('Project deleted');
+}
+
+export function openNodeSpace(id){
+  if (id === ME_ID || id === TETHER_ID) return;
+  const p = getProject(id);
+  if (!p) return toast('Select a project');
+  savePositions(true);
+  setViewRoot(id);
+  renderCurrentSpace(true);
+  network.selectNodes([id]);
+  showProject(id);
+  toast(`Opened ${p.name} space`);
+}
+
+export function traceTether(){
+  if (viewRootId === ME_ID) {
+    fitView();
+    toast('Already at Shivraj space');
+    return;
+  }
+  const from = viewRootId;
+  const parent = getParentId(from);
+  savePositions(true);
+  setViewRoot(parent);
+  renderCurrentSpace(true);
+  network.selectNodes([from]);
+  showProject(from);
+  toast(`Returned to ${rootLabelOf(parent)} space`);
 }
 
 export function openByName(name, focusOnly=false){
   const key = name.trim().toLowerCase();
   const p = projects.find(x => x.name.toLowerCase() === key);
-  if(!p){ toast('Not found: '+name); speak('Project not found'); return; }
+  if(!p){ toast('Not found: '+name); return null; }
+  if (!nodes.get(p.id)) {
+    setViewRoot(p.parentId || ME_ID);
+    renderCurrentSpace(true);
+  }
   network.selectNodes([p.id]); showProject(p.id);
   if(focusOnly){ network.focus(p.id,{ scale:1.2, animation:true }); }
-  speak((focusOnly?'Focused ':'Opened ') + p.name);
+  return p;
 }
 
-export function setProgressByName(name,val){ 
+export function openNodeByName(name){
+  const p = openByName(name, false);
+  if (p) openNodeSpace(p.id);
+  return p;
+}
+
+export function setProgressByName(name,val){
   const key = name.trim().toLowerCase();
   const p = projects.find(x => x.name.toLowerCase() === key);
-  if(!p){ speak('Project not found'); return; }
+  if(!p){ return null; }
   val = Math.max(0, Math.min(100, val));
   p.progress = val; p.updated = nowStr();
   updateProjects(list => list);
-  $('pProgress').value = val; $('pProgressVal').textContent = val+'%';
-  speak(`${p.name} progress set to ${val} percent`);
+  if (selectedId === p.id) {
+    $('pProgress').value = val; $('pProgressVal').textContent = val+'%';
+  }
+  return p;
 }
 
 export function searchFilesInSelected(term){
@@ -155,9 +294,16 @@ export function searchFilesInSelected(term){
 }
 
 export function savePositions(silent = false){
-  const ids = projects.map(p=>p.id);
-  const pos = network.getPositions(ids);
-  for (const p of projects){ if (pos[p.id]) p.pos = { x: pos[p.id].x, y: pos[p.id].y }; }
+  if (!network) return;
+  const visibleProjectIds = nodes.getIds().filter(id => id !== ME_ID && id !== TETHER_ID);
+  const pos = network.getPositions(visibleProjectIds);
+  for (const p of projects){
+    if (pos[p.id]) {
+      p.posByView = p.posByView || {};
+      p.posByView[viewRootId] = { x: pos[p.id].x, y: pos[p.id].y };
+      if ((p.parentId || ME_ID) === ME_ID && viewRootId === ME_ID) p.pos = p.posByView[viewRootId];
+    }
+  }
   updateProjects(list => list);
   if (!silent) toast('Layout saved');
 }
@@ -174,3 +320,15 @@ export function fitView() {
     network.fit({ animation: true, padding: 100 });
   }
 }
+
+export function selectFirstHomeProject(){
+  const first = projects.find(p => (p.parentId || ME_ID) === ME_ID);
+  if (first) {
+    if (!nodes.get(first.id)) renderCurrentSpace(false);
+    network.selectNodes([first.id]);
+    showProject(first.id);
+  } else {
+    clearSelectionPanel(false);
+  }
+}
+ 

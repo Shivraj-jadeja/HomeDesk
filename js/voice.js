@@ -1,5 +1,5 @@
 import { toast, speak, projects, selectedId } from './data.js';
-import { addProject, openByName, setProgressByName, searchFilesInSelected, renameProjectById, deleteProjectById, fitView } from './graph.js';
+import { addProject, openByName, openNodeByName, setProgressByName, searchFilesInSelected, renameProjectById, deleteProjectById, fitView, traceTether } from './graph.js';
 
 let rec = null; let listening=false;
 
@@ -27,12 +27,14 @@ export function handleCommand(raw){
   const t = raw.toLowerCase().trim();
   console.log('voice>', t);
 
-  // quick actions first
   if (t === 'stop voice' || t === 'voice stop' || t === 'stop listening') {
     stopVoice(); speak('Voice stopped'); return;
   }
   if (t === 'center view' || t === 'reset view' || t === 'fit view') {
     fitView(); speak('Centered'); return;
+  }
+  if (t === 'trace tether' || t === 'follow tether' || t === 'go back') {
+    traceTether(); speak('Following trace tether'); return;
   }
 
   if(/^(list|show) projects?$/.test(t)){
@@ -41,13 +43,38 @@ export function handleCommand(raw){
   }
 
   let m;
-  if(m = t.match(/^open project (.+)$/)){ openByName(m[1].trim()); return; }
-  if(m = t.match(/^focus (.+)$/)){ openByName(m[1].trim(), true); return; }
-  if(m = t.match(/^set progress (.+) to (\d{1,3})$/)){ setProgressByName(m[1].trim(), parseInt(m[2],10)); return; }
-  if(m = t.match(/^add project (.+)$/)){ addProject(cap(m[1].trim())); return; }
-  if(m = t.match(/^search files (for )?(.+)$/)){ searchFilesInSelected(m[2].trim()); return; }
+  if(m = t.match(/^open node (.+)$/)){
+    const p = openNodeByName(m[1].trim());
+    speak(p ? `Opened ${p.name} space` : 'Project not found');
+    return;
+  }
+  if(m = t.match(/^open project (.+)$/)){
+    const p = openByName(m[1].trim());
+    speak(p ? `Opened ${p.name}` : 'Project not found');
+    return;
+  }
+  if(m = t.match(/^focus (.+)$/)){
+    const p = openByName(m[1].trim(), true);
+    speak(p ? `Focused ${p.name}` : 'Project not found');
+    return;
+  }
+  if(m = t.match(/^set progress (.+) to (\d{1,3})$/)){
+    const p = setProgressByName(m[1].trim(), parseInt(m[2],10));
+    speak(p ? `${p.name} progress set` : 'Project not found');
+    return;
+  }
+  if(m = t.match(/^add project (.+)$/)){
+    const p = addProject(cap(m[1].trim()));
+    speak(`Added project ${p.name}`);
+    return;
+  }
+  if(m = t.match(/^add node (.+)$/)){
+    const p = addProject(cap(m[1].trim()));
+    speak(`Added node ${p.name}`);
+    return;
+  }
+  if(m = t.match(/^search files (for )?(.+)$/)){ searchFilesInSelected(m[2].trim()); speak('Searching files'); return; }
 
-  // RENAME: "rename project <old> to <new>" / "rename project current to <new>"
   if (m = t.match(/^rename project (.+) to (.+)$/)) {
     const oldRaw = m[1].trim();
     const newName = cap(m[2].trim());
@@ -63,16 +90,15 @@ export function handleCommand(raw){
     }
   }
 
-  // DELETE: "delete project <name>" OR "delete current project" / "delete current"
   if(m = t.match(/^delete (project )?(.+)$/)){
     const target = (m[2]||'').trim();
     if(target === 'current project' || target === 'current' || target === 'this project'){
       if(!selectedId){ speak('No project selected'); toast('Select a project'); return; }
-      deleteProjectById(selectedId); return;
+      deleteProjectById(selectedId); speak('Project deleted'); return;
     }
     const p = projects.find(x=>x.name.toLowerCase()===target.toLowerCase());
     if(!p){ speak('Project not found'); toast('Not found: '+target); return; }
-    deleteProjectById(p.id); return;
+    deleteProjectById(p.id); speak('Project deleted'); return;
   }
 
   toast('Unrecognized: '+raw); speak('Sorry, I did not get that');

@@ -10,38 +10,39 @@
   <meta name="theme-color" content="#0b1020" />
 
   <!-- Styles -->
-  <link rel="stylesheet" href="./galaxy.css?v=7" />
-  <link rel="stylesheet" href="./styles.css?v=7" />
+  <link rel="stylesheet" href="./galaxy.css?v=10" />
+  <link rel="stylesheet" href="./styles.css?v=10" />
 
   <!-- Libraries -->
   <link rel="preconnect" href="https://unpkg.com"/>
   <script src="./vis-network.min.js"></script>
 
   <!-- Galaxy helper as a plain script (GLOBAL). Safe to 404. -->
-  <script defer src="./js/galaxy.global.js?v=9"></script>
+  <script defer src="./js/galaxy.global.js?v=10"></script>
 
   <!-- App module (load ONCE) -->
-  <script type="module" src="./js/app.js?v=9"></script>
+  <script type="module" src="./js/app.js?v=10"></script>
 </head>
 <body>
   <div class="app">
     <div class="topbar">
       <h1>HomeDesk</h1>
       <button class="btn primary" id="addProjectBtn">Add Project</button>
+      <button class="btn" id="openNodeBtn">Open Node</button>
+      <button class="btn tether" id="traceTetherBtn">Trace Tether</button>
       <button class="btn" id="renameBtn">Rename</button>
       <button class="btn" id="deleteBtn">Delete Project</button>
       <button class="btn" id="centerBtn">Center View</button>
       <button class="btn" id="voiceStartBtn">Start Voice</button>
       <button class="btn ghost" id="voiceStopBtn">Stop Voice</button>
       <span class="muted" id="status">ready</span>
-      <div style="margin-left:auto" class="row">
+      <div style="margin-left:auto" class="row search-row">
         <input class="input" id="searchInput" placeholder="Search files in selected project…"/>
         <button class="btn" id="searchBtn">Search</button>
       </div>
     </div>
 
     <div class="main">
-      <!-- ⭐ Graph area (galaxy behind, vis-network front) -->
       <div id="app-wrap">
         <div id="galaxy-bg" aria-hidden="true"></div>
         <div id="graph"></div>
@@ -50,6 +51,7 @@
       <aside class="side" id="side">
         <div class="section">
           <h2>Project</h2>
+          <div class="kv"><div class="muted">Space</div><div id="spaceName">Shivraj</div></div>
           <div class="kv"><div class="muted">Name</div><div id="pName">—</div></div>
           <div class="kv"><div class="muted">Progress</div><div><input id="pProgress" type="range" min="0" max="100" value="0"/></div></div>
           <div class="kv"><div class="muted">Value</div><div><span class="pill" id="pProgressVal">0%</span></div></div>
@@ -59,14 +61,12 @@
             <button class="btn" id="indexBtn">Index Files</button>
           </div>
           <div class="callout" id="callout">
-            Voice Commands:
-            <span class="pill">“open project &lt;name&gt;”</span>,
-            <span class="pill">“add project &lt;name&gt;”</span>,
-            <span class="pill">“set progress &lt;name&gt; to 60”</span>,
-            <span class="pill">“rename project &lt;old&gt; to &lt;new&gt;”</span>,
-            <span class="pill">“list projects”</span>,
-            <span class="pill">“delete project &lt;name&gt;”</span>,
-            <span class="pill">“stop voice”</span>
+            Controls:
+            <span class="pill">double-click node to open its space</span>,
+            <span class="pill">Open Node</span>,
+            <span class="pill">Trace Tether</span>,
+            <span class="pill">“open node &lt;name&gt;”</span>,
+            <span class="pill">“trace tether”</span>
           </div>
 
           <div>
@@ -88,7 +88,6 @@
     </div>
   </div>
 
-  <!-- SW registration -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
